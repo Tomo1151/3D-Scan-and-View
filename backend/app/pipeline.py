@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import shutil
 import logging
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def run_pipeline(job_id: str, input_image_path: str, rotation_deg: float = 0.0):
     """
     Asynchronous end-to-end processing pipeline:
-    1. Background removal using rembg (RGBA PNG)
+    1. Background removal using rembg (RGBA PNG) - Isolated worker subprocess
     2. Checkpoint management (daily cache with -c)
     3. 3DGS generation using apple/ml-sharp (CUDA / MPS / CPU)
     4. PLY cleaning (black noise & outlier removal using validated logic)
@@ -29,12 +30,13 @@ async def run_pipeline(job_id: str, input_image_path: str, rotation_deg: float =
     sharp_output_dir = os.path.join(job_dir, "sharp_output")
     os.makedirs(sharp_input_dir, exist_ok=True)
     os.makedirs(sharp_output_dir, exist_ok=True)
+    sharp_img_path = os.path.join(sharp_input_dir, "input.png")
     
     cleaned_ply_path = os.path.join(job_dir, "model_cleaned.ply")
 
     try:
         # ----------------------------------------------------
-        # Step 1: 背景透過処理 (rembg)
+        # Step 1: 背景透過処理 (rembg: プロセス分離実行)
         # ----------------------------------------------------
         await job_manager.update_job(
             job_id,
@@ -43,17 +45,26 @@ async def run_pipeline(job_id: str, input_image_path: str, rotation_deg: float =
             message="物体の背景を透過処理中 (AIセグメンテーション)...",
             input_image_url=f"/api/jobs/{job_id}/input.png"
         )
-        logger.info(f"[{job_id}] Removing background with rembg...")
+        logger.info(f"[{job_id}] Removing background with rembg (isolated process)...")
 
         def _remove_bg():
-            from rembg import remove
-            with Image.open(input_image_path) as img:
-                img = img.convert("RGBA")
-                result = remove(img)
-                result.save(segmented_path, "PNG")
-                # ml-sharp expects standard image file in input directory
-                sharp_img_path = os.path.join(sharp_input_dir, "input.png")
-                result.save(sharp_img_path, "PNG")
+            import sys
+            cmd = [
+                sys.executable,
+                "-m", "app.bg_remover",
+                os.path.abspath(input_image_path),
+                os.path.abspath(segmented_path),
+                os.path.abspath(sharp_img_path)
+            ]
+            res = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=str(config.BASE_DIR)
+            )
+            if res.returncode != 0:
+                raise RuntimeError(f"Background removal failed: {res.stderr}")
 
         await asyncio.to_thread(_remove_bg)
         
@@ -102,7 +113,6 @@ async def run_pipeline(job_id: str, input_image_path: str, rotation_deg: float =
         )
 
         # Build command: resolve 'sharp' executable or run as python module
-        import sys
         sharp_bin = shutil.which("sharp")
         if not sharp_bin:
             # Check virtualenv scripts/bin folder

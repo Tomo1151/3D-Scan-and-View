@@ -71,8 +71,12 @@ class App {
     this.btnTrackGyro = document.getElementById("btnTrackGyro");
     this.sliderDepthScale = document.getElementById("sliderDepthScale");
     this.labelDepthScale = document.getElementById("labelDepthScale");
+    this.sliderSplatSize = document.getElementById("sliderSplatSize");
+    this.labelSplatSize = document.getElementById("labelSplatSize");
     this.btnResetView = document.getElementById("btnResetView");
     this.btnToggleRoom = document.getElementById("btnToggleRoom");
+    this.btnOpenSuperSplat = document.getElementById("btnOpenSuperSplat");
+    this.btnDownloadPly = document.getElementById("btnDownloadPly");
 
     // PiP Tracker
     this.trackingVideo = document.getElementById("trackingVideo");
@@ -197,6 +201,15 @@ class App {
       this.offAxis.setDepthScale(val);
     });
 
+    // Splat Density Slider
+    if (this.sliderSplatSize) {
+      this.sliderSplatSize.addEventListener("input", (e) => {
+        const val = parseFloat(e.target.value);
+        this.labelSplatSize.textContent = `${val.toFixed(1)}x`;
+        this.splatViewer.setSplatSize(val);
+      });
+    }
+
     // Reset View
     this.btnResetView.addEventListener("click", () => {
       this.headTracker.reset();
@@ -207,6 +220,32 @@ class App {
     this.btnToggleRoom.addEventListener("click", () => {
       this.splatViewer.toggleRoomVisibility();
     });
+
+    // Open in SuperSplat Editor
+    if (this.btnOpenSuperSplat) {
+      this.btnOpenSuperSplat.addEventListener("click", () => {
+        window.open("https://superspl.at/editor", "_blank");
+        this.showToast("SuperSplatを開きました！ダウンロードしたPLYファイルをドラッグ＆ドロップして高精細編集できます。", 6000);
+      });
+    }
+
+    // Download PLY
+    if (this.btnDownloadPly) {
+      this.btnDownloadPly.addEventListener("click", () => {
+        const url = this.currentPlyUrl || (this.splatViewer && this.splatViewer.currentPlyUrl);
+        if (url) {
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "3dgs_model.ply";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          this.showToast("3DGS PLYモデルのダウンロードを開始しました。");
+        } else {
+          this.showToast("まだ3Dモデルが生成されていません。");
+        }
+      });
+    }
 
     // Minimize PiP
     this.btnMinimizePip.addEventListener("click", () => {
@@ -240,6 +279,15 @@ class App {
       this.btnSwitchMode.querySelector(".label").textContent = "SCAN NEW";
       this.cameraManager.stop();
       this.headTracker.start(this.headTracker.mode);
+      if (!this.splatViewer.splatObject) {
+        this.splatViewer.loadSplat("/api/jobs/latest/model.ply")
+          .then(() => {
+            this.currentPlyUrl = "/api/jobs/latest/model.ply";
+          })
+          .catch((err) => {
+            console.log("No previous scan available yet:", err);
+          });
+      }
     }
   }
 
@@ -273,6 +321,7 @@ class App {
 
       // Load PLY into SplatViewer
       const plyUrl = completedJob.splat_url || `/api/jobs/${jobId}/model.ply`;
+      this.currentPlyUrl = plyUrl;
       await this.splatViewer.loadSplat(plyUrl);
 
       // Transition to viewer

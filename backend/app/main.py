@@ -92,6 +92,20 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found.")
     return job.model_dump()
 
+@app.get("/api/jobs/latest/model.ply")
+async def get_latest_ply():
+    """Serves the most recently generated 3DGS PLY model."""
+    import glob
+    plys = glob.glob(os.path.join(config.OUTPUTS_DIR, "**", "model_cleaned.ply"), recursive=True)
+    if not plys:
+        raise HTTPException(status_code=404, detail="No 3DGS model has been generated yet.")
+    plys.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return FileResponse(
+        path=plys[0],
+        media_type="application/octet-stream",
+        filename="latest_3dgs_model.ply"
+    )
+
 @app.get("/api/jobs/{job_id}/model.ply")
 async def get_cleaned_ply(job_id: str):
     """Serves the generated and cleaned 3DGS PLY file."""

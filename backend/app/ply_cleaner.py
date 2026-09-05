@@ -84,7 +84,24 @@ def clean_3dgs_ply(
             vertex_data['rot_3'] = w1 * z2 - y1 * x2
         logger.info(f"Rotated coordinates and quaternions by {rotation_deg} degrees around Y-axis")
 
-    # 4. 保存
+    # 4. 基本RGBカラーの付与 (3DGSのSH f_dc から標準PLYビューア互換のRGBを生成)
+    if 'f_dc_0' in vertex_data.dtype.names and 'red' not in vertex_data.dtype.names:
+        SH_C0 = 0.28209479177387814
+        r_val = np.clip(vertex_data['f_dc_0'] * SH_C0 + 0.5, 0.0, 1.0)
+        g_val = np.clip(vertex_data['f_dc_1'] * SH_C0 + 0.5, 0.0, 1.0)
+        b_val = np.clip(vertex_data['f_dc_2'] * SH_C0 + 0.5, 0.0, 1.0)
+
+        new_dtype = vertex_data.dtype.descr + [('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
+        new_vertex_data = np.empty(vertex_data.shape, dtype=new_dtype)
+        for name in vertex_data.dtype.names:
+            new_vertex_data[name] = vertex_data[name]
+        new_vertex_data['red'] = (r_val * 255).astype(np.uint8)
+        new_vertex_data['green'] = (g_val * 255).astype(np.uint8)
+        new_vertex_data['blue'] = (b_val * 255).astype(np.uint8)
+        vertex_data = new_vertex_data
+        logger.info("Added standard RGB color fields from 3DGS spherical harmonics.")
+
+    # 5. 保存
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     el = PlyElement.describe(vertex_data, 'vertex')
     PlyData([el]).write(output_path)

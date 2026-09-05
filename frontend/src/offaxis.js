@@ -56,5 +56,6 @@ export class OffAxisProjection {
 
     // Construct asymmetric perspective projection matrix
     this.camera.projectionMatrix.makePerspective(left, right, top, bottom, this.near, this.far);
+    this.camera.projectionMatrixInverse.copy(this.camera.projectionMatrix).invert();
   }
 }
