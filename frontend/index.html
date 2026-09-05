@@ -3,23 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>3DGS Spatial Scanner & Off-Axis Viewer</title>
-  <meta name="description" content="apple/ml-sharp による単眼画像からの3DGS生成と、顔追跡 Off-Axis Projection による疑似3D空間立体視 Webシステム" />
+  <title>3D Spatial Scanner & Off-Axis Viewer</title>
+  <meta name="description" content="単眼画像からの3DGS生成と、顔追跡 Off-Axis Projection による疑似3D空間立体視 Webシステム" />
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Import Maps for Three.js and MediaPipe -->
+  <!-- Import Maps for Three.js -->
   <script type="importmap">
     {
       "imports": {
         "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/",
-        "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+        "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
       }
     }
   </script>
@@ -30,70 +29,83 @@
 </head>
 <body>
   <div id="app" class="app-container">
-    <!-- Top Header HUD -->
-    <header class="hud-header">
+    <!-- Top Header -->
+    <header class="app-header">
       <div class="brand">
-        <div class="logo-orb"></div>
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
         <div class="brand-text">
-          <span class="title">SPATIAL SCANNER</span>
-          <span class="subtitle">ml-sharp 3DGS & Off-Axis Window</span>
+          <span class="title">3D Spatial Scanner</span>
+          <span class="subtitle">Off-Axis Viewer</span>
         </div>
       </div>
 
       <div class="system-pills">
-        <div class="pill" id="devicePill" title="サーバーの計算デバイス">
+        <div class="pill" id="devicePill" title="計算デバイス">
           <span class="dot"></span>
-          <span id="deviceText">DEVICE: DETECTING...</span>
+          <span id="deviceText">DEVICE: DETECTING</span>
         </div>
-        <div class="pill" id="cachePill" title="モデルチェックポイントキャッシュ状態">
+        <div class="pill" id="cachePill" title="モデルキャッシュ">
           <span class="dot green"></span>
           <span id="cacheText">CACHE: READY</span>
         </div>
-        <div class="pill" id="trackerPill" title="顔追跡ステータス">
-          <span class="dot yellow"></span>
+        <div class="pill" id="trackerPill" title="トラッカー状態">
+          <span class="dot neutral"></span>
           <span id="trackerText">TRACKER: IDLE</span>
         </div>
       </div>
 
       <div class="header-actions">
-        <button id="btnSwitchMode" class="btn-glass" title="モード切り替え">
-          <span class="icon">📷</span>
-          <span class="label">SCAN NEW</span>
+        <button id="btnSwitchMode" class="btn-nav" title="モード切り替え">
+          <span class="icon" id="switchModeIcon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+          </span>
+          <span class="label">3D VIEW</span>
         </button>
-        <button id="btnFullscreen" class="btn-glass-icon" title="フルスクリーン表示">⛶</button>
+        <button id="btnFullscreen" class="btn-icon" title="フルスクリーン切り替え">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
       </div>
     </header>
 
-    <!-- Main Content Area -->
+    <!-- Main Workspace -->
     <main class="main-stage">
       
       <!-- VIEW 1: Camera / Capture Screen -->
       <section id="viewCapture" class="view-panel active">
         <div class="capture-card">
           <div class="card-header">
-            <h2>物体スキャン撮影</h2>
-            <p>立体化したい物体を中心に配置して撮影してください。白やシンプルな背景が推奨されます。</p>
+            <h2>物体スキャン</h2>
+            <p>立体化したい物体を枠内に収めて撮影してください。</p>
           </div>
 
           <div class="camera-viewport-wrap">
             <video id="cameraVideo" autoplay playsinline muted></video>
             <canvas id="cameraCanvas" style="display: none;"></canvas>
 
-            <!-- Target Reticle & Grid Overlay -->
+            <!-- Clean subtle framing guideline -->
             <div class="reticle-overlay">
-              <div class="reticle-box">
-                <div class="corner tl"></div>
-                <div class="corner tr"></div>
-                <div class="corner bl"></div>
-                <div class="corner br"></div>
-                <div class="reticle-cross"></div>
-              </div>
-              <div class="hint-text">OBJECT TARGET AREA</div>
+              <div class="reticle-box"></div>
+              <div class="hint-text">撮影範囲</div>
             </div>
 
-            <!-- Captured Image Preview (Overlay) -->
+            <!-- Captured Image Preview Overlay -->
             <div id="capturedPreviewWrap" class="captured-preview-wrap" style="display: none;">
-              <img id="capturedImage" alt="Captured Preview" />
+              <img id="capturedImage" alt="プレビュー" />
               <div class="preview-badge">撮影プレビュー</div>
             </div>
           </div>
@@ -102,16 +114,24 @@
           <div class="capture-controls">
             <div class="controls-row">
               <button id="btnFlipCamera" class="btn-secondary" title="カメラ切り替え">
-                🔄 カメラ切替
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>カメラ切替</span>
               </button>
 
               <label class="btn-secondary file-upload-label" title="写真ファイルをアップロード">
-                📁 ファイル選択
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>ファイル選択</span>
                 <input type="file" id="fileInput" accept="image/*" style="display: none;" />
               </label>
 
               <div class="rotation-option">
-                <label for="selectRotation">配置回転:</label>
+                <label for="selectRotation">配置回転</label>
                 <select id="selectRotation">
                   <option value="0">0° (正面)</option>
                   <option value="90">90° (右向き)</option>
@@ -123,15 +143,26 @@
 
             <div class="shutter-row">
               <!-- Live capture button -->
-              <button id="btnShutter" class="btn-shutter" title="撮影する">
+              <button id="btnShutter" class="btn-shutter" title="撮影">
                 <div class="shutter-inner"></div>
               </button>
 
               <!-- Action buttons after capture -->
               <div id="captureActionButtons" class="action-buttons-group" style="display: none;">
-                <button id="btnRetake" class="btn-secondary">再撮影</button>
-                <button id="btnGenerate3D" class="btn-primary-glow">
-                  ✨ 3DGSモデル生成開始
+                <button id="btnRetake" class="btn-secondary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                  </svg>
+                  <span>再撮影</span>
+                </button>
+                <button id="btnGenerate3D" class="btn-primary">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                  <span>3Dモデルを生成</span>
                 </button>
               </div>
             </div>
@@ -144,14 +175,10 @@
         <div class="loading-canvas-container" id="loading3DCanvas"></div>
 
         <div class="loading-info-overlay">
-          <div class="cyber-spinner">
-            <div class="ring outer"></div>
-            <div class="ring inner"></div>
-            <div class="core-dot"></div>
-          </div>
+          <div class="loading-spinner"></div>
 
-          <h2 id="loadingTitle" class="glitch-text">3D SPATIAL RECONSTRUCTION</h2>
-          <p id="loadingMessage">ニューラルネットワークが物体の3DGS空間構造を推論しています...</p>
+          <h2 id="loadingTitle">3D空間を再構成中</h2>
+          <p id="loadingMessage">ニューラルネットワークが物体の3D空間構造を推論しています...</p>
 
           <div class="progress-bar-container">
             <div class="progress-bar-fill" id="loadingProgressBar" style="width: 15%;"></div>
@@ -162,22 +189,22 @@
           <div class="pipeline-stepper">
             <div class="step-item" id="stepSegment">
               <div class="step-icon">1</div>
-              <div class="step-label">背景透過 (rembg)</div>
+              <div class="step-label">背景分離</div>
             </div>
             <div class="step-connector"></div>
             <div class="step-item" id="step3DGS">
               <div class="step-icon">2</div>
-              <div class="step-label">3DGS生成 (ml-sharp)</div>
+              <div class="step-label">3DGS生成</div>
             </div>
             <div class="step-connector"></div>
             <div class="step-item" id="stepClean">
               <div class="step-icon">3</div>
-              <div class="step-label">黒点・ノイズ除去</div>
+              <div class="step-label">ノイズ除去</div>
             </div>
             <div class="step-connector"></div>
             <div class="step-item" id="stepRender">
               <div class="step-icon">4</div>
-              <div class="step-label">空間レンダリング</div>
+              <div class="step-label">描画準備</div>
             </div>
           </div>
         </div>
@@ -188,66 +215,96 @@
         <!-- 3D Canvas Container -->
         <div id="viewerCanvasContainer" class="viewer-canvas-container"></div>
 
-        <!-- Virtual Display Window Frame (Creates the Optical Illusion of depth) -->
+        <!-- Virtual Display Window Frame -->
         <div class="virtual-window-frame">
-          <div class="window-border-tl"></div>
-          <div class="window-border-tr"></div>
-          <div class="window-border-bl"></div>
-          <div class="window-border-br"></div>
-          <div class="window-title-tag">OFF-AXIS SPATIAL WINDOW</div>
+          <div class="window-title-tag">3D OFF-AXIS WINDOW</div>
         </div>
 
         <!-- Floating HUD Control Bar -->
         <div class="viewer-hud-bar">
           <div class="hud-group">
-            <span class="hud-label">TRACKING MODE:</span>
+            <span class="hud-label">トラッキング</span>
             <div class="btn-toggle-group">
-              <button id="btnTrackFace" class="btn-toggle active" title="Webカメラの顔追跡で視点移動">
-                👤 顔追跡 (Off-Axis)
+              <button id="btnTrackFace" class="btn-toggle active" title="顔追跡で視点移動">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M20 21a8 8 0 1 0-16 0"/>
+                </svg>
+                <span>顔追跡</span>
               </button>
               <button id="btnTrackMouse" class="btn-toggle" title="マウス移動で視点移動">
-                🖱️ マウス/指
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                  <path d="M13 13l6 6"/>
+                </svg>
+                <span>マウス</span>
               </button>
-              <button id="btnTrackGyro" class="btn-toggle" title="スマホの傾きで視点移動">
-                📱 ジャイロ
+              <button id="btnTrackGyro" class="btn-toggle" title="端末の傾きで視点移動">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                  <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+                <span>ジャイロ</span>
               </button>
             </div>
           </div>
 
+          <div class="hud-divider"></div>
+
           <div class="hud-group">
-            <label for="sliderDepthScale" class="hud-label">立体感の強さ:</label>
+            <label for="sliderDepthScale" class="hud-label">立体感</label>
             <input type="range" id="sliderDepthScale" min="0.5" max="3.0" step="0.1" value="1.4" />
             <span id="labelDepthScale" class="slider-val">1.4x</span>
           </div>
 
           <div class="hud-group">
-            <label for="sliderSplatSize" class="hud-label">点群の密度:</label>
+            <label for="sliderSplatSize" class="hud-label">点群密度</label>
             <input type="range" id="sliderSplatSize" min="0.5" max="2.5" step="0.1" value="1.0" />
             <span id="labelSplatSize" class="slider-val">1.0x</span>
           </div>
 
+          <div class="hud-divider"></div>
+
           <div class="hud-group">
-            <button id="btnResetView" class="btn-ghost" title="正面位置にリセット">
-              🎯 視点リセット
+            <button id="btnResetView" class="btn-hud-action" title="正面位置にリセット">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="22" y1="12" x2="18" y2="12"/>
+                <line x1="6" y1="12" x2="2" y2="12"/>
+                <line x1="12" y1="6" x2="12" y2="2"/>
+                <line x1="12" y1="22" x2="12" y2="18"/>
+              </svg>
+              <span>視点リセット</span>
             </button>
-            <button id="btnToggleRoom" class="btn-ghost" title="仮想の部屋とグリッドの表示切替">
-              📦 空間枠切替
+            <button id="btnToggleRoom" class="btn-hud-action" title="部屋グリッドの表示切替">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                <polyline points="2 17 12 22 22 17"/>
+                <polyline points="2 12 12 17 22 12"/>
+              </svg>
+              <span>空間枠</span>
             </button>
-            <button id="btnOpenSuperSplat" class="btn-ghost" title="公式SuperSplatエディターで開く">
-              🚀 SuperSplat
-            </button>
-            <button id="btnDownloadPly" class="btn-ghost" title="生成された3DGS PLYモデルをダウンロード">
-              💾 PLY保存
+            <button id="btnDownloadPly" class="btn-hud-action" title="3DGS PLYファイルを保存">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>PLY保存</span>
             </button>
           </div>
         </div>
 
-        <!-- Mini Face Tracking Diagnostic PIP (Picture in Picture) -->
+        <!-- Mini Face Tracking Diagnostic PIP -->
         <div id="faceTrackerPip" class="face-tracker-pip">
           <div class="pip-header">
             <span class="pip-dot"></span>
-            <span>HEAD TRACKING</span>
-            <button id="btnMinimizePip" class="pip-btn-min">_</button>
+            <span>FACE TRACKING</span>
+            <button id="btnMinimizePip" class="pip-btn-min" title="最小化">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
           </div>
           <div class="pip-body">
             <video id="trackingVideo" autoplay playsinline muted></video>

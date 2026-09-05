@@ -80,34 +80,34 @@ export class SplatViewer {
     // Floor with grid
     const floorGeo = new THREE.PlaneGeometry(roomWidth, roomDepth);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x0c101c,
-      roughness: 0.4,
-      metalness: 0.8,
+      color: 0x0a0e17,
+      roughness: 0.6,
+      metalness: 0.2,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set(0, -roomHeight / 2, -roomDepth / 2);
     this.roomGroup.add(floor);
 
-    // Grid on Floor
-    const gridHelper = new THREE.GridHelper(roomWidth, 16, 0x00f0ff, 0x18243c);
+    // Subtle Architectural Grid on Floor
+    const gridHelper = new THREE.GridHelper(roomWidth, 16, 0x334155, 0x1e293b);
     gridHelper.position.set(0, -roomHeight / 2 + 0.005, -roomDepth / 2);
     this.roomGroup.add(gridHelper);
 
     // Back Wall
     const backWallGeo = new THREE.PlaneGeometry(roomWidth, roomHeight);
     const backWallMat = new THREE.MeshStandardMaterial({
-      color: 0x0a0d17,
-      roughness: 0.7,
+      color: 0x090c14,
+      roughness: 0.8,
     });
     const backWall = new THREE.Mesh(backWallGeo, backWallMat);
     backWall.position.set(0, 0, -roomDepth);
     this.roomGroup.add(backWall);
 
-    // Subtle neon border along the back wall
+    // Subtle edge border along the back wall
     const backWallEdges = new THREE.LineSegments(
       new THREE.EdgesGeometry(backWallGeo),
-      new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.3 })
+      new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.4 })
     );
     backWallEdges.position.set(0, 0, -roomDepth + 0.01);
     this.roomGroup.add(backWallEdges);

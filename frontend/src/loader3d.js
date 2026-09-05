@@ -43,8 +43,8 @@ export class Loader3D {
     const targetPositions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
 
-    const colorCyan = new THREE.Color(0x00f0ff);
-    const colorPurple = new THREE.Color(0x9d4edd);
+    const colorA = new THREE.Color(0x94a3b8);
+    const colorB = new THREE.Color(0x3b82f6);
 
     for (let i = 0; i < particleCount; i++) {
       // Initial spread positions (chaotic cloud)
@@ -72,7 +72,7 @@ export class Loader3D {
       targetPositions[i * 3 + 2] = tubeR * Math.sin(tPhi);
 
       // Gradient colors
-      const mixed = colorCyan.clone().lerp(colorPurple, Math.random());
+      const mixed = colorA.clone().lerp(colorB, Math.random());
       colors[i * 3] = mixed.r;
       colors[i * 3 + 1] = mixed.g;
       colors[i * 3 + 2] = mixed.b;
@@ -84,10 +84,10 @@ export class Loader3D {
 
     // Particle Material
     const material = new THREE.PointsMaterial({
-      size: 0.04,
+      size: 0.035,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -95,13 +95,13 @@ export class Loader3D {
     this.particles = new THREE.Points(geometry, material);
     this.scene.add(this.particles);
 
-    // Glowing core ring
-    const ringGeo = new THREE.RingGeometry(1.05, 1.08, 64);
+    // Subtle core ring
+    const ringGeo = new THREE.RingGeometry(1.05, 1.07, 64);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0x00f0ff,
+      color: 0x64748b,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.25,
       blending: THREE.AdditiveBlending,
     });
     this.coreRing = new THREE.Mesh(ringGeo, ringMat);

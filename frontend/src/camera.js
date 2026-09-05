@@ -17,7 +17,7 @@ export class CameraManager {
       const isHttps = window.location.protocol === "https:";
       const msg = isHttps
         ? "カメラへのアクセスがブラウザまたはOSで許可されていません。設定をご確認ください。"
-        : "【カメラがブロックされました】\nブラウザのセキュリティ仕様により、LAN経由の非HTTPS（http://）ではカメラが使用できません。\nサーバーをHTTPS（https://...）で起動してアクセスするか、下の「📁 ファイル選択」から撮影した写真をアップロードしてください。";
+        : "【カメラがブロックされました】\nブラウザのセキュリティ仕様により、LAN経由の非HTTPS（http://）ではカメラが使用できません。\nサーバーをHTTPS（https://...）で起動してアクセスするか、下の「ファイル選択」から撮影した写真をアップロードしてください。";
       throw new Error(msg);
     }
 

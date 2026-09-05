@@ -75,7 +75,6 @@ class App {
     this.labelSplatSize = document.getElementById("labelSplatSize");
     this.btnResetView = document.getElementById("btnResetView");
     this.btnToggleRoom = document.getElementById("btnToggleRoom");
-    this.btnOpenSuperSplat = document.getElementById("btnOpenSuperSplat");
     this.btnDownloadPly = document.getElementById("btnDownloadPly");
 
     // PiP Tracker
@@ -220,14 +219,6 @@ class App {
     this.btnToggleRoom.addEventListener("click", () => {
       this.splatViewer.toggleRoomVisibility();
     });
-
-    // Open in SuperSplat Editor
-    if (this.btnOpenSuperSplat) {
-      this.btnOpenSuperSplat.addEventListener("click", () => {
-        window.open("https://superspl.at/editor", "_blank");
-        this.showToast("SuperSplatを開きました！ダウンロードしたPLYファイルをドラッグ＆ドロップして高精細編集できます。", 6000);
-      });
-    }
 
     // Download PLY
     if (this.btnDownloadPly) {
