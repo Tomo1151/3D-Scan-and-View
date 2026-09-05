@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: 3d-scan-and-view
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/workspace/data
+      - ./models:/workspace/models
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - CHECKPOINT_CACHE_TTL_SECONDS=86400
+      - BLACK_THRESH=0.015
+      - OUTLIER_K=20
+      - OUTLIER_STD_RATIO=2.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped

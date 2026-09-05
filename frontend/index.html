@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>3DGS Spatial Scanner & Off-Axis Viewer</title>
+  <meta name="description" content="apple/ml-sharp による単眼画像からの3DGS生成と、顔追跡 Off-Axis Projection による疑似3D空間立体視 Webシステム" />
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Import Maps for Three.js and MediaPipe -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/",
+        "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.3/build/gaussian-splats-3d.module.js"
+      }
+    }
+  </script>
+
+  <!-- MediaPipe Face Mesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Top Header HUD -->
+    <header class="hud-header">
+      <div class="brand">
+        <div class="logo-orb"></div>
+        <div class="brand-text">
+          <span class="title">SPATIAL SCANNER</span>
+          <span class="subtitle">ml-sharp 3DGS & Off-Axis Window</span>
+        </div>
+      </div>
+
+      <div class="system-pills">
+        <div class="pill" id="devicePill" title="サーバーの計算デバイス">
+          <span class="dot"></span>
+          <span id="deviceText">DEVICE: DETECTING...</span>
+        </div>
+        <div class="pill" id="cachePill" title="モデルチェックポイントキャッシュ状態">
+          <span class="dot green"></span>
+          <span id="cacheText">CACHE: READY</span>
+        </div>
+        <div class="pill" id="trackerPill" title="顔追跡ステータス">
+          <span class="dot yellow"></span>
+          <span id="trackerText">TRACKER: IDLE</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btnSwitchMode" class="btn-glass" title="モード切り替え">
+          <span class="icon">📷</span>
+          <span class="label">SCAN NEW</span>
+        </button>
+        <button id="btnFullscreen" class="btn-glass-icon" title="フルスクリーン表示">⛶</button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-stage">
+      
+      <!-- VIEW 1: Camera / Capture Screen -->
+      <section id="viewCapture" class="view-panel active">
+        <div class="capture-card">
+          <div class="card-header">
+            <h2>物体スキャン撮影</h2>
+            <p>立体化したい物体を中心に配置して撮影してください。白やシンプルな背景が推奨されます。</p>
+          </div>
+
+          <div class="camera-viewport-wrap">
+            <video id="cameraVideo" autoplay playsinline muted></video>
+            <canvas id="cameraCanvas" style="display: none;"></canvas>
+
+            <!-- Target Reticle & Grid Overlay -->
+            <div class="reticle-overlay">
+              <div class="reticle-box">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <div class="reticle-cross"></div>
+              </div>
+              <div class="hint-text">OBJECT TARGET AREA</div>
+            </div>
+
+            <!-- Captured Image Preview (Overlay) -->
+            <div id="capturedPreviewWrap" class="captured-preview-wrap" style="display: none;">
+              <img id="capturedImage" alt="Captured Preview" />
+              <div class="preview-badge">撮影プレビュー</div>
+            </div>
+          </div>
+
+          <!-- Camera Controls -->
+          <div class="capture-controls">
+            <div class="controls-row">
+              <button id="btnFlipCamera" class="btn-secondary" title="カメラ切り替え">
+                🔄 カメラ切替
+              </button>
+
+              <label class="btn-secondary file-upload-label" title="写真ファイルをアップロード">
+                📁 ファイル選択
+                <input type="file" id="fileInput" accept="image/*" style="display: none;" />
+              </label>
+
+              <div class="rotation-option">
+                <label for="selectRotation">配置回転:</label>
+                <select id="selectRotation">
+                  <option value="0">0° (正面)</option>
+                  <option value="90">90° (右向き)</option>
+                  <option value="180">180° (背面)</option>
+                  <option value="270">270° (左向き)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="shutter-row">
+              <!-- Live capture button -->
+              <button id="btnShutter" class="btn-shutter" title="撮影する">
+                <div class="shutter-inner"></div>
+              </button>
+
+              <!-- Action buttons after capture -->
+              <div id="captureActionButtons" class="action-buttons-group" style="display: none;">
+                <button id="btnRetake" class="btn-secondary">再撮影</button>
+                <button id="btnGenerate3D" class="btn-primary-glow">
+                  ✨ 3DGSモデル生成開始
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: 3D Holographic Loading Screen -->
+      <section id="viewLoading" class="view-panel">
+        <div class="loading-canvas-container" id="loading3DCanvas"></div>
+
+        <div class="loading-info-overlay">
+          <div class="cyber-spinner">
+            <div class="ring outer"></div>
+            <div class="ring inner"></div>
+            <div class="core-dot"></div>
+          </div>
+
+          <h2 id="loadingTitle" class="glitch-text">3D SPATIAL RECONSTRUCTION</h2>
+          <p id="loadingMessage">ニューラルネットワークが物体の3DGS空間構造を推論しています...</p>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="loadingProgressBar" style="width: 15%;"></div>
+          </div>
+          <div class="progress-percent" id="loadingProgressPercent">15%</div>
+
+          <!-- Pipeline Progress Steps -->
+          <div class="pipeline-stepper">
+            <div class="step-item" id="stepSegment">
+              <div class="step-icon">1</div>
+              <div class="step-label">背景透過 (rembg)</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item" id="step3DGS">
+              <div class="step-icon">2</div>
+              <div class="step-label">3DGS生成 (ml-sharp)</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item" id="stepClean">
+              <div class="step-icon">3</div>
+              <div class="step-label">黒点・ノイズ除去</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-item" id="stepRender">
+              <div class="step-icon">4</div>
+              <div class="step-label">空間レンダリング</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: 3DGS & Off-Axis Virtual Window Screen -->
+      <section id="viewViewer" class="view-panel">
+        <!-- 3D Canvas Container -->
+        <div id="viewerCanvasContainer" class="viewer-canvas-container"></div>
+
+        <!-- Virtual Display Window Frame (Creates the Optical Illusion of depth) -->
+        <div class="virtual-window-frame">
+          <div class="window-border-tl"></div>
+          <div class="window-border-tr"></div>
+          <div class="window-border-bl"></div>
+          <div class="window-border-br"></div>
+          <div class="window-title-tag">OFF-AXIS SPATIAL WINDOW</div>
+        </div>
+
+        <!-- Floating HUD Control Bar -->
+        <div class="viewer-hud-bar">
+          <div class="hud-group">
+            <span class="hud-label">TRACKING MODE:</span>
+            <div class="btn-toggle-group">
+              <button id="btnTrackFace" class="btn-toggle active" title="Webカメラの顔追跡で視点移動">
+                👤 顔追跡 (Off-Axis)
+              </button>
+              <button id="btnTrackMouse" class="btn-toggle" title="マウス移動で視点移動">
+                🖱️ マウス/指
+              </button>
+              <button id="btnTrackGyro" class="btn-toggle" title="スマホの傾きで視点移動">
+                📱 ジャイロ
+              </button>
+            </div>
+          </div>
+
+          <div class="hud-group">
+            <label for="sliderDepthScale" class="hud-label">立体感の強さ:</label>
+            <input type="range" id="sliderDepthScale" min="0.5" max="3.0" step="0.1" value="1.4" />
+            <span id="labelDepthScale" class="slider-val">1.4x</span>
+          </div>
+
+          <div class="hud-group">
+            <button id="btnResetView" class="btn-ghost" title="正面位置にリセット">
+              🎯 視点リセット
+            </button>
+            <button id="btnToggleRoom" class="btn-ghost" title="仮想の部屋とグリッドの表示切替">
+              📦 空間枠切替
+            </button>
+          </div>
+        </div>
+
+        <!-- Mini Face Tracking Diagnostic PIP (Picture in Picture) -->
+        <div id="faceTrackerPip" class="face-tracker-pip">
+          <div class="pip-header">
+            <span class="pip-dot"></span>
+            <span>HEAD TRACKING</span>
+            <button id="btnMinimizePip" class="pip-btn-min">_</button>
+          </div>
+          <div class="pip-body">
+            <video id="trackingVideo" autoplay playsinline muted></video>
+            <canvas id="trackingCanvas"></canvas>
+            <div id="pipCoords" class="pip-coords">X: 0.00 | Y: 0.00 | Z: 0.00</div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Global Toast Notification -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

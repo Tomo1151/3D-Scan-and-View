@@ -216,3 +216,39 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ==========================================
+# 3D-Scan-and-View Project Specific Ignores
+# ==========================================
+# Python virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Large model checkpoints (apple/ml-sharp weights ~2.8GB)
+models/
+*.pt
+*.pth
+*.bin
+*.onnx
+
+# User data, uploaded photos, and generated 3DGS outputs
+data/
+output_ply/
+*.ply
+
+# SSL certificates and private keys
+certs/
+*.pem
+*.key
+*.crt
+
+# Temporary & Log files
+*.tmp
+*.log
+ver.txt
+
+# OS metadata
+.DS_Store
+Thumbs.db
